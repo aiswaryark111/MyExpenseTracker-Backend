@@ -8,10 +8,12 @@ import { JwtStrategy } from './jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Category } from '../categories/category.entity';
 import { StringValue } from 'ms';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
     UsersModule,
+    PassportModule,
     TypeOrmModule.forFeature([Category]),
     JwtModule.registerAsync({
       imports: [ConfigModule],

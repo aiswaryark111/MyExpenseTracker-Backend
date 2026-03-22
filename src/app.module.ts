@@ -8,6 +8,8 @@ import { Budget } from './budgets/budget.entity';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { CategoriesModule } from './categories/categories.module';
+import { BudgetsModule } from './budgets/budgets.module';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { ExpensesModule } from './expenses/expenses.module';
     UsersModule,
     AuthModule,
     ExpensesModule,
+    CategoriesModule,
+    BudgetsModule,
   ],
 })
 export class AppModule {}

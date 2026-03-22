@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('auth')
 export class AuthController {
@@ -26,6 +27,7 @@ export class AuthController {
   }
 
   // Protected route — returns logged in user's info
+  @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   getMe(@Request() req) {
