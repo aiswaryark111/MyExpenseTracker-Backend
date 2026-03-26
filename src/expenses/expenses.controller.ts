@@ -82,4 +82,46 @@ export class ExpensesController {
   remove(@Request() req, @Param('id') id: string) {
     return this.expensesService.remove(id, req.user.id);
   }
+
+  @Get('daily-spending')
+  getDailySpending(
+    @Request() req,
+    @Query('month') month: string,
+    @Query('year') year: string,
+  ) {
+    return this.expensesService.getDailySpending(
+      req.user.id,
+      parseInt(month),
+      parseInt(year),
+    );
+  }
+
+  @Get('month-comparison')
+  getMonthComparison(@Request() req) {
+    return this.expensesService.getMonthComparison(req.user.id);
+  }
+
+  @Get('export')
+  async exportCsv(
+    @Request() req,
+    @Query('month') month: string,
+    @Query('year') year: string,
+  ) {
+    const expenses = await this.expensesService.getAllForExport(
+      req.user.id,
+      month ? parseInt(month) : undefined,
+      year ? parseInt(year) : undefined,
+    );
+
+    // Build CSV string
+    const headers = 'Date,Description,Category,Amount\n';
+    const rows = expenses
+      .map(
+        (e) =>
+          `${e.date},"${e.description || ''}","${e.category?.name || ''}",${e.amount}`,
+      )
+      .join('\n');
+
+    return { csv: headers + rows };
+  }
 }

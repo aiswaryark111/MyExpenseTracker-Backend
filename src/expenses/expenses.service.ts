@@ -152,4 +152,86 @@ export class ExpensesService {
 
     return results;
   }
+
+  // Daily spending pattern for a given month
+  async getDailySpending(userId: string, month: number, year: number) {
+    const result = await this.expensesRepository
+      .createQueryBuilder('expense')
+      .select('EXTRACT(DOW FROM expense.date)', 'dayOfWeek')
+      .addSelect('SUM(expense.amount)', 'total')
+      .where('expense.userId = :userId', { userId })
+      .andWhere('EXTRACT(MONTH FROM expense.date) = :month', { month })
+      .andWhere('EXTRACT(YEAR FROM expense.date) = :year', { year })
+      .groupBy('EXTRACT(DOW FROM expense.date)')
+      .orderBy('EXTRACT(DOW FROM expense.date)', 'ASC')
+      .getRawMany();
+
+    // Map 0-6 (Sun-Sat) to day names
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayMap: Record<string, number> = {};
+    result.forEach((r) => {
+      dayMap[days[parseInt(r.dayOfWeek)]] = parseFloat(r.total) || 0;
+    });
+
+    return days.map((day) => ({ day, total: dayMap[day] ?? 0 }));
+  }
+
+  // Month over month comparison
+  async getMonthComparison(userId: string) {
+    const now = new Date();
+    type MonthData = {
+      label: string;
+      month: number;
+      year: number;
+      total: number;
+    };
+
+    // Type the array
+    const months: MonthData[] = [];
+
+    for (let i = 2; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      const total = await this.getMonthlyTotal(userId, month, year);
+
+      months.push({
+        label: date.toLocaleString('default', {
+          month: 'long',
+          year: 'numeric',
+        }),
+        month,
+        year,
+        total,
+      });
+    }
+
+    // Calculate % change
+    return months.map((m, i) => ({
+      ...m,
+      change:
+        i === 0 || months[i - 1].total === 0
+          ? null
+          : Math.round(
+              ((m.total - months[i - 1].total) / months[i - 1].total) * 100,
+            ),
+    }));
+  }
+
+  // All expenses for CSV export
+  async getAllForExport(userId: string, month?: number, year?: number) {
+    const qb = this.expensesRepository
+      .createQueryBuilder('expense')
+      .leftJoinAndSelect('expense.category', 'category')
+      .where('expense.userId = :userId', { userId })
+      .orderBy('expense.date', 'DESC');
+
+    if (month && year) {
+      qb.andWhere('EXTRACT(MONTH FROM expense.date) = :month', {
+        month,
+      }).andWhere('EXTRACT(YEAR FROM expense.date) = :year', { year });
+    }
+
+    return qb.getMany();
+  }
 }
