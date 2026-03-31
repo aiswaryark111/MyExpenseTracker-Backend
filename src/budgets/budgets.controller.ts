@@ -54,4 +54,31 @@ export class BudgetsController {
   remove(@Request() req, @Param('id') id: string) {
     return this.budgetsService.remove(id, req.user.id);
   }
+
+  @Get('alerts')
+  async getAlerts(@Request() req) {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    // Get all budgets for current month
+    const budgets = await this.budgetsService.findAll(req.user.id, month, year);
+
+    // Filter only ones that are near limit or over budget
+    const alerts = budgets
+      .filter((b) => b.percentage >= 80)
+      .map((b) => ({
+        budgetId: b.id,
+        categoryName: b.category?.name,
+        categoryIcon: b.category?.icon,
+        spent: b.spent,
+        amount: Number(b.amount),
+        percentage: b.percentage,
+        remaining: b.remaining,
+        isOverBudget: b.isOverBudget,
+        isNearLimit: b.percentage >= 80 && !b.isOverBudget,
+      }));
+
+    return alerts;
+  }
 }

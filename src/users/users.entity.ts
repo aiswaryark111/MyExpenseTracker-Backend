@@ -24,6 +24,9 @@ export class User {
   @Column()
   name: string;
 
+  @Column({ default: false })
+  isPremium: boolean;
+
   @OneToMany(() => Expense, (expense) => expense.user)
   expenses: Expense[];
 

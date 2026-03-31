@@ -9,20 +9,34 @@ import { Expense } from './expense.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { QueryExpenseDto } from './dto/query-expense.dto';
+import { BudgetsService } from 'src/budgets/budgets.service';
 
 @Injectable()
 export class ExpensesService {
   constructor(
     @InjectRepository(Expense)
     private expensesRepository: Repository<Expense>,
+    private budgetsService: BudgetsService,
   ) {}
 
-  async create(userId: string, dto: CreateExpenseDto): Promise<Expense> {
+  async create(userId: string, dto: CreateExpenseDto) {
     const expense = this.expensesRepository.create({
       ...dto,
       userId,
     });
-    return this.expensesRepository.save(expense);
+    const saved = this.expensesRepository.save(expense);
+    const date = new Date(dto.date);
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+
+    const budgetStatus = await this.budgetsService.getBudgetStatus(
+      userId,
+      dto.categoryId,
+      month,
+      year,
+    );
+
+    return { expense: saved, budgetAlert: budgetStatus };
   }
 
   async findAll(userId: string, query: QueryExpenseDto) {
