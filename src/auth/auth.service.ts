@@ -25,6 +25,7 @@ export class AuthService {
   async register(dto: RegisterDto) {
     // Check if email already exists
     const existing = await this.usersService.findByEmail(dto.email);
+    console.log('hELLO EMAIL');
     if (existing) throw new ConflictException('Email already in use');
 
     // Hash password

@@ -4,7 +4,13 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
+  app.enableCors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
   const config = new DocumentBuilder()
     .setTitle('My API')
     .setDescription('API description')
@@ -14,10 +20,10 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
-  app.enableCors({
-    origin: 'http://localhost:5173', // Vite's default port
-    credentials: true,
-  });
+  // app.enableCors({
+  //   origin: 'http://localhost:5173', // Vite's default port
+  //   credentials: true,
+  // });
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 

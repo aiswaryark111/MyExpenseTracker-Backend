@@ -27,6 +27,9 @@ export class User {
   @Column({ default: false })
   isPremium: boolean;
 
+  @Column({ nullable: true })
+  stripeCustomerId: string;
+
   @OneToMany(() => Expense, (expense) => expense.user)
   expenses: Expense[];
 

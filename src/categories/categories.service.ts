@@ -13,7 +13,7 @@ export class CategoriesService {
   // Returns default categories + user's custom ones
   async findAll(userId: string): Promise<Category[]> {
     return this.categoriesRepository.find({
-      where: [{ userId }, { isDefault: true }],
+      where: [{ userId, isDefault: true }],
       order: { isDefault: 'DESC', name: 'ASC' },
     });
   }
