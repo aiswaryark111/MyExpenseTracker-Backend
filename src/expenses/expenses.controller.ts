@@ -64,25 +64,6 @@ export class ExpensesController {
     return this.expensesService.getLast6MonthsTotals(req.user.id);
   }
 
-  @Get(':id')
-  findOne(@Request() req, @Param('id') id: string) {
-    return this.expensesService.findOne(id, req.user.id);
-  }
-
-  @Put(':id')
-  update(
-    @Request() req,
-    @Param('id') id: string,
-    @Body() dto: UpdateExpenseDto,
-  ) {
-    return this.expensesService.update(id, req.user.id, dto);
-  }
-
-  @Delete(':id')
-  remove(@Request() req, @Param('id') id: string) {
-    return this.expensesService.remove(id, req.user.id);
-  }
-
   @Get('daily-spending')
   getDailySpending(
     @Request() req,
@@ -123,5 +104,24 @@ export class ExpensesController {
       .join('\n');
 
     return { csv: headers + rows };
+  }
+
+  @Get(':id')
+  findOne(@Request() req, @Param('id') id: string) {
+    return this.expensesService.findOne(id, req.user.id);
+  }
+
+  @Put(':id')
+  update(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: UpdateExpenseDto,
+  ) {
+    return this.expensesService.update(id, req.user.id, dto);
+  }
+
+  @Delete(':id')
+  remove(@Request() req, @Param('id') id: string) {
+    return this.expensesService.remove(id, req.user.id);
   }
 }
