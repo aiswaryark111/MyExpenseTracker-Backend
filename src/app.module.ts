@@ -29,7 +29,7 @@ import { PaymentsModule } from './payments/payments.module';
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
         entities: [User, Expense, Category, Budget],
-        synchronize: true, // auto-creates tables (dev only!)
+        synchronize: false, // auto-creates tables (dev only!)
         ssl: { rejectUnauthorized: false }, // required for Supabase
       }),
     }),
