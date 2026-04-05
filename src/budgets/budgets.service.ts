@@ -21,7 +21,7 @@ export class BudgetsService {
     const budgets = await this.budgetsRepository
       .createQueryBuilder('budget')
       .leftJoinAndSelect('budget.category', 'category')
-      .where('budget.userId = :userId', { userId })
+      .andWhere('budget.userId = :userId', { userId })
       .andWhere('budget.month = :month', { month })
       .andWhere('budget.year = :year', { year })
       .getMany();
