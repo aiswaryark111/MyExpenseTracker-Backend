@@ -8,12 +8,15 @@ import { Repository } from 'typeorm';
 import { Budget } from './budget.entity';
 import { CreateBudgetDto } from './dto/create-budget.dto';
 import { UpdateBudgetDto } from './dto/update-budget.dto';
+import { Expense } from 'src/expenses/expense.entity';
 
 @Injectable()
 export class BudgetsService {
   constructor(
     @InjectRepository(Budget)
     private budgetsRepository: Repository<Budget>,
+    @InjectRepository(Expense)
+    private expensesRepository: Repository<Expense>,
   ) {}
 
   // Get all budgets for a given month/year with spent amounts
@@ -29,18 +32,27 @@ export class BudgetsService {
     // For each budget, calculate how much has been spent
     const budgetsWithSpent = await Promise.all(
       budgets.map(async (budget) => {
-        const spentResult = await this.budgetsRepository
-          .createQueryBuilder('budget')
+        // const spentResult = await this.budgetsRepository
+        //   .createQueryBuilder('budget')
+        //   .select('SUM(expense.amount)', 'spent')
+        //   .from('expenses', 'expense')
+        //   .andWhere('expense.userId = :userId', { userId })
+        //   .andWhere('expense.categoryId = :categoryId', {
+        //     categoryId: budget.categoryId,
+        //   })
+        //   .andWhere('EXTRACT(MONTH FROM expense.date) = :month', { month })
+        //   .andWhere('EXTRACT(YEAR FROM expense.date) = :year', { year })
+        const spentResult = await this.expensesRepository
+          .createQueryBuilder('expense')
           .select('SUM(expense.amount)', 'spent')
-          .from('expenses', 'expense')
-          .where('expense.userId = :userId', { userId })
+          .andWhere('expense.userId = :userId', { userId })
           .andWhere('expense.categoryId = :categoryId', {
             categoryId: budget.categoryId,
           })
           .andWhere('EXTRACT(MONTH FROM expense.date) = :month', { month })
           .andWhere('EXTRACT(YEAR FROM expense.date) = :year', { year })
           .getRawOne();
-
+        console.log(spentResult, 'spentResult');
         const spent = parseFloat(spentResult?.spent) || 0;
         const percentage =
           budget.amount > 0
@@ -56,6 +68,7 @@ export class BudgetsService {
         };
       }),
     );
+    // console.log(budgetsWithSpent, 'srs');
 
     return budgetsWithSpent;
   }
