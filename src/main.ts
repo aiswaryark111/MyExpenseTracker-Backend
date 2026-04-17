@@ -20,10 +20,6 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
-  // app.enableCors({
-  //   origin: 'http://localhost:5173', // Vite's default port
-  //   credentials: true,
-  // });
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
