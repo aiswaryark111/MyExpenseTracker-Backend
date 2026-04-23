@@ -8,10 +8,13 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "start:lambda": "nest build && npx serverless@3 deploy --stage prod",
+    "deploy:lambda": "nest build && npx serverless@3 deploy --stage prod",
+    "remove:lambda": "npx serverless@3 remove",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -20,6 +23,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1035.0",
+    "@aws-sdk/client-ssm": "^3.1035.0",
+    "@aws-sdk/s3-request-presigner": "^3.1035.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
@@ -39,10 +45,11 @@
     "pg": "^8.18.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "serverless-http": "^4.0.0",
     "stripe": "^21.0.1",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.28",
-    "uuid": "^13.0.0"
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -50,6 +57,7 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@types/aws-lambda": "^8.10.161",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
@@ -64,6 +72,8 @@
     "globals": "^16.0.0",
     "jest": "^30.0.0",
     "prettier": "^3.4.2",
+    "serverless": "^3.40.0",
+    "serverless-dotenv-plugin": "^6.0.0",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",

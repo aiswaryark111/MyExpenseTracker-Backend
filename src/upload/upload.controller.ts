@@ -25,28 +25,24 @@ export class UploadController {
   @Post('receipt')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: memoryStorage(), // keep in memory, we send to Supabase
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   async uploadReceipt(
     @Request() req,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    console.log('=== UPLOAD HIT ===');
-    console.log('User:', req.user?.id, 'isPremium:', req.user);
-    console.log('File:', file?.originalname, file?.mimetype, file?.size);
     if (!file) throw new BadRequestException('No file uploaded');
 
-    // Check premium status
     if (!req.user.isPremium) {
       throw new BadRequestException(
         'Receipt uploads are a Premium feature. Please upgrade.',
       );
     }
 
-    const path = await this.uploadService.uploadReceipt(req.user.id, file);
-    return { path };
+    const key = await this.uploadService.uploadReceipt(req.user.id, file);
+    return { path: key };
   }
 
   @Get('receipt-url')

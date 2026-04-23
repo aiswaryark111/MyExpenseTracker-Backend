@@ -1,14 +1,30 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { supabase } from '../common/supabase';
+import { ConfigService } from '@nestjs/config';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UploadService {
+  private s3: S3Client;
+  private bucket: string;
+
+  constructor(private configService: ConfigService) {
+    this.s3 = new S3Client({
+      region: process.env.AWS_REGION ?? 'eu-west-1', // Lambda sets this automatically
+    });
+    this.bucket = process.env.AWS_RECEIPTS_BUCKET ?? 'expenseiq-receipts';
+  }
+
   async uploadReceipt(
     userId: string,
     file: Express.Multer.File,
   ): Promise<string> {
-    console.log(';print receipt');
     if (!file) throw new BadRequestException('No file provided');
 
     // Only allow images and PDFs
@@ -27,33 +43,38 @@ export class UploadService {
       throw new BadRequestException('File size must be under 5MB');
     }
 
-    // Build path: userId/uuid.ext
+    // Build key: userId/uuid.ext
     const ext = file.originalname.split('.').pop();
-    const filename = `${userId}/${uuidv4()}.${ext}`;
+    const key = `${userId}/${uuidv4()}.${ext}`;
 
-    const { error } = await supabase.storage
-      .from('receipts')
-      .upload(filename, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false,
-      });
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    });
 
-    if (error) throw new BadRequestException('Upload failed: ' + error.message);
+    await this.s3.send(command);
 
-    // Return the path (we'll generate signed URLs when needed)
-    return filename;
+    return key;
   }
 
-  async getSignedUrl(path: string): Promise<string> {
-    const { data, error } = await supabase.storage
-      .from('receipts')
-      .createSignedUrl(path, 60 * 60); // 1 hour expiry
+  async getSignedUrl(key: string): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
 
-    if (error) throw new BadRequestException('Could not generate URL');
-    return data.signedUrl;
+    // URL expires in 1 hour
+    return getSignedUrl(this.s3, command, { expiresIn: 3600 });
   }
 
-  async deleteReceipt(path: string): Promise<void> {
-    await supabase.storage.from('receipts').remove([path]);
+  async deleteReceipt(key: string): Promise<void> {
+    const command = new DeleteObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+
+    await this.s3.send(command);
   }
 }
