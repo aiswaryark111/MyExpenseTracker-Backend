@@ -9,6 +9,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Category } from '../categories/category.entity';
 import { StringValue } from 'ms';
 import { PassportModule } from '@nestjs/passport';
+import { RateLimitGuard } from './rate-limit-guard';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { PassportModule } from '@nestjs/passport';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, RateLimitGuard],
   controllers: [AuthController],
 })
 export class AuthModule {}

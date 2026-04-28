@@ -13,6 +13,7 @@ import { BudgetsModule } from './budgets/budgets.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { UploadModule } from './upload/upload.module';
 import { PaymentsModule } from './payments/payments.module';
+import { RedisModule } from './common/redis.module';
 
 @Module({
   imports: [
@@ -29,12 +30,16 @@ import { PaymentsModule } from './payments/payments.module';
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_NAME'),
         entities: [User, Expense, Category, Budget],
-        synchronize: false, // auto-creates tables (dev only!)
-        ssl: { rejectUnauthorized: false }, // required for Supabase
+        synchronize: true, // auto-creates tables (dev only!)
+        ssl:
+          config.get('NODE_ENV') === 'production'
+            ? { rejectUnauthorized: false }
+            : false,
       }),
     }),
 
     UsersModule,
+    RedisModule,
     AuthModule,
     ExpensesModule,
     CategoriesModule,

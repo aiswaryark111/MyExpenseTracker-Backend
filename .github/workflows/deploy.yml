@@ -1,0 +1,64 @@
+name: Deploy Backend to Lambda
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'serverless.yml'
+      - 'package.json'
+      - 'tsconfig.json'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install Serverless Framework
+        run: npm install -g serverless@3
+
+      - name: Deploy to Lambda
+        run: serverless deploy --stage prod
+        env:
+          DB_HOST: placeholder
+          DB_PORT: '5432'
+          DB_USERNAME: placeholder
+          DB_PASSWORD: placeholder
+          DB_NAME: postgres
+          JWT_SECRET: placeholder
+          JWT_EXPIRES_IN: 7d
+          SUPABASE_URL: placeholder
+          SUPABASE_SERVICE_KEY: placeholder
+          STRIPE_SECRET_KEY: placeholder
+          STRIPE_WEBHOOK_SECRET: placeholder
+          STRIPE_PRICE_ID: placeholder
+          FRONTEND_URL: placeholder
+          AWS_RECEIPTS_BUCKET: expenseiq-receipts
+
+      - name: Done
+        run: echo " Backend deployed to Lambda"

@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,6 +12,7 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { QueryExpenseDto } from './dto/query-expense.dto';
 import { BudgetsService } from 'src/budgets/budgets.service';
+import { RedisService } from '../common/redis.service';
 
 @Injectable()
 export class ExpensesService {
@@ -17,14 +20,37 @@ export class ExpensesService {
     @InjectRepository(Expense)
     private expensesRepository: Repository<Expense>,
     private budgetsService: BudgetsService,
+    private redisService: RedisService,
   ) {}
 
+  // async create(userId: string, dto: CreateExpenseDto) {
+  //   const expense = this.expensesRepository.create({
+  //     ...dto,
+  //     userId,
+  //   });
+  //   const saved = this.expensesRepository.save(expense);
+  //   const date = new Date(dto.date);
+  //   const month = date.getMonth() + 1;
+  //   const year = date.getFullYear();
+
+  //   const budgetStatus = await this.budgetsService.getBudgetStatus(
+  //     userId,
+  //     dto.categoryId,
+  //     month,
+  //     year,
+  //   );
+
+  //   return { expense: saved, budgetAlert: budgetStatus };
+  // }
   async create(userId: string, dto: CreateExpenseDto) {
-    const expense = this.expensesRepository.create({
-      ...dto,
-      userId,
-    });
-    const saved = this.expensesRepository.save(expense);
+    const expense = this.expensesRepository.create({ ...dto, userId });
+    const saved = await this.expensesRepository.save(expense);
+
+    // Invalidate dashboard cache
+    await this.redisService.delPattern(`dashboard:${userId}:*`);
+    await this.redisService.delPattern(`analytics:${userId}:*`);
+
+    // Check budget status
     const date = new Date(dto.date);
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
@@ -101,21 +127,40 @@ export class ExpensesService {
     return expense;
   }
 
-  async update(
-    id: string,
-    userId: string,
-    dto: UpdateExpenseDto,
-  ): Promise<Expense> {
+  // async update(
+  //   id: string,
+  //   userId: string,
+  //   dto: UpdateExpenseDto,
+  // ): Promise<Expense> {
+  //   const expense = await this.findOne(id, userId);
+  //   Object.assign(expense, dto);
+  //   return this.expensesRepository.save(expense);
+  // }
+
+  // async remove(id: string, userId: string): Promise<void> {
+  //   const expense = await this.findOne(id, userId);
+  //   await this.expensesRepository.remove(expense);
+  // }
+  async update(id: string, userId: string, dto: UpdateExpenseDto) {
     const expense = await this.findOne(id, userId);
     Object.assign(expense, dto);
-    return this.expensesRepository.save(expense);
+    const saved = await this.expensesRepository.save(expense);
+
+    // Invalidate cache
+    await this.redisService.delPattern(`dashboard:${userId}:*`);
+    await this.redisService.delPattern(`analytics:${userId}:*`);
+
+    return saved;
   }
 
-  async remove(id: string, userId: string): Promise<void> {
+  async remove(id: string, userId: string) {
     const expense = await this.findOne(id, userId);
     await this.expensesRepository.remove(expense);
-  }
 
+    // Invalidate cache
+    await this.redisService.delPattern(`dashboard:${userId}:*`);
+    await this.redisService.delPattern(`analytics:${userId}:*`);
+  }
   // Used by dashboard and analytics
   async getMonthlyTotal(userId: string, month: number, year: number) {
     const result = await this.expensesRepository
@@ -129,8 +174,53 @@ export class ExpensesService {
     return parseFloat(result.total) || 0;
   }
 
+  // async getCategoryTotals(userId: string, month: number, year: number) {
+  //   return this.expensesRepository
+  //     .createQueryBuilder('expense')
+  //     .leftJoinAndSelect('expense.category', 'category')
+  //     .select('category.id', 'categoryId')
+  //     .addSelect('category.name', 'categoryName')
+  //     .addSelect('category.icon', 'categoryIcon')
+  //     .addSelect('SUM(expense.amount)', 'total')
+  //     .where('expense.userId = :userId', { userId })
+  //     .andWhere('EXTRACT(MONTH FROM expense.date) = :month', { month })
+  //     .andWhere('EXTRACT(YEAR FROM expense.date) = :year', { year })
+  //     .groupBy('category.id')
+  //     .addGroupBy('category.name')
+  //     .addGroupBy('category.icon')
+  //     .orderBy('total', 'DESC')
+  //     .getRawMany();
+  // }
+
+  // async getLast6MonthsTotals(userId: string) {
+  //   const results: Array<{ month: string; year: number; total: number }> = [];
+  //   const now = new Date();
+
+  //   for (let i = 5; i >= 0; i--) {
+  //     const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+  //     const month = date.getMonth() + 1;
+  //     const year = date.getFullYear();
+
+  //     const total = await this.getMonthlyTotal(userId, month, year);
+  //     results.push({
+  //       month: date.toLocaleString('default', { month: 'short' }),
+  //       year,
+  //       total,
+  //     });
+  //   }
+
+  //   return results;
+  // }
+
+  // Daily spending pattern for a given month
+
   async getCategoryTotals(userId: string, month: number, year: number) {
-    return this.expensesRepository
+    const cacheKey = `analytics:${userId}:categories:${month}:${year}`;
+
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const result = await this.expensesRepository
       .createQueryBuilder('expense')
       .leftJoinAndSelect('expense.category', 'category')
       .select('category.id', 'categoryId')
@@ -145,17 +235,27 @@ export class ExpensesService {
       .addGroupBy('category.icon')
       .orderBy('total', 'DESC')
       .getRawMany();
+
+    // Cache for 10 minutes
+    await this.redisService.setex(cacheKey, 600, JSON.stringify(result));
+
+    return result;
   }
 
   async getLast6MonthsTotals(userId: string) {
-    const results: Array<{ month: string; year: number; total: number }> = [];
+    const cacheKey = `analytics:${userId}:last6months`;
+
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    type MonthTotal = { month: string; year: number; total: number };
+    const results: MonthTotal[] = [];
     const now = new Date();
 
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
-
       const total = await this.getMonthlyTotal(userId, month, year);
       results.push({
         month: date.toLocaleString('default', { month: 'short' }),
@@ -164,10 +264,11 @@ export class ExpensesService {
       });
     }
 
+    // Cache for 10 minutes
+    await this.redisService.setex(cacheKey, 600, JSON.stringify(results));
+
     return results;
   }
-
-  // Daily spending pattern for a given month
   async getDailySpending(userId: string, month: number, year: number) {
     const result = await this.expensesRepository
       .createQueryBuilder('expense')

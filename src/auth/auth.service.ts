@@ -12,12 +12,14 @@ import { defaultCategories } from 'src/categories/category.seed';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Category } from '../categories/category.entity';
 import { Repository } from 'typeorm';
+import { RedisService } from 'src/common/redis.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private redisService: RedisService,
     @InjectRepository(Category)
     private categoriesRepository: Repository<Category>,
   ) {}
@@ -66,5 +68,18 @@ export class AuthService {
     return {
       access_token: this.jwtService.sign(payload),
     };
+  }
+
+  async logout(token: string): Promise<void> {
+    // Blacklist token for 7 days (same as JWT expiry)
+    await this.redisService.setex(
+      `blacklist:${token}`,
+      60 * 60 * 24 * 7,
+      'true',
+    );
+  }
+
+  async isTokenBlacklisted(token: string): Promise<boolean> {
+    return this.redisService.exists(`blacklist:${token}`);
   }
 }
